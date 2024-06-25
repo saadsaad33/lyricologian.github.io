@@ -290,140 +290,122 @@
         <p>&copy; 2024 Lyricologian. All rights reserved. Powered by Last.fm and Genius</p>
     </footer>
 
- <script>
-    const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+    <script>
+        // API configuration
+        const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+        const lastfmApiKey = 'b8323903872df412ea5c9591caa23f2f';
+        const lastfmApiUrl = 'https://ws.audioscrobbler.com/2.0/';
+        const geniusApiKey = 'iXtpxYnIe48T6haMq8L0EO6-Fjo3fhddTaFa6Xl1Is4tH7mjKZPw0gn3JP7jmBuS8PRXdKH5MOP-HAjLR06pyA';
+        const geniusApiUrl = 'https://api.genius.com';
 
-    const lastfmApiKey = 'b8323903872df412ea5c9591caa23f2f';  // Replace with your actual Last.fm API key
-    const lastfmApiUrl = 'https://ws.audioscrobbler.com/2.0/';
-    const geniusApiKey = 'iXtpxYnIe48T6haMq8L0EO6-Fjo3fhddTaFa6Xl1Is4tH7mjKZPw0gn3JP7jmBuS8PRXdKH5MOP-HAjLR06pyA';  // Replace with your actual Genius API key
-    const geniusApiUrl = 'https://api.genius.com';
+        // DOM elements
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const lyricsContent = document.getElementById('lyrics-content');
+        const artistImage = document.getElementById('artist-image');
+        const artistName = document.getElementById('artist-name');
+        const artistBio = document.getElementById('artist-bio');
 
-    // DOM elements
-    const searchInput = document.getElementById('search-input');
-    const searchButton = document.getElementById('search-button');
-    const lyricsContent = document.getElementById('lyrics-content');
-    const artistImage = document.getElementById('artist-image');
-    const artistName = document.getElementById('artist-name');
-    const artistBio = document.getElementById('artist-bio');
-
-    // Search functionality
-    searchButton.addEventListener('click', () => {
-        const searchTerm = searchInput.value;
-        console.log(`Searching for: ${searchTerm}`);
-        searchSong(searchTerm);
-    });
-
-    async function searchSong(query) {
-        try {
-            const geniusResponse = await fetch(`${corsProxy}${geniusApiUrl}/search?q=${encodeURIComponent(query)}`, {
-                headers: {
-                    'Authorization': `Bearer ${geniusApiKey}`
-                }
-            });
-
-            if (!geniusResponse.ok) {
-                throw new Error(`Failed to fetch song data from Genius: ${geniusResponse.status} ${geniusResponse.statusText}`);
-            }
-
-            const geniusData = await geniusResponse.json();
-            console.log('Genius API response:', geniusData);
-
-            if (geniusData.response.hits.length > 0) {
-                const song = geniusData.response.hits[0].result;
-                displaySongInfo(song);
-                await fetchLyrics(song.id);
-                searchArtist(song.primary_artist.name);
-            } else {
-                clearSongInfo('Song not found. Please try another search.');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            clearSongInfo('Error fetching song information. Please try again later.');
-        }
-    }
-
-    function displaySongInfo(song) {
-        lyricsContent.innerHTML = `
-            <h3>${song.title}</h3>
-            <p>Artist: ${song.primary_artist.name}</p>
-            <p>Album: ${song.album ? song.album.name : 'N/A'}</p>
-            <p>Release Date: ${song.release_date_for_display || 'N/A'}</p>
-        `;
-    }
-
-    async function fetchLyrics(songId) {
-        try {
-            const response = await fetch(`${corsProxy}${geniusApiUrl}/songs/${songId}`, {
-                headers: {
-                    'Authorization': `Bearer ${geniusApiKey}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch lyrics from Genius: ${response.status} ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            console.log('Lyrics API response:', data);
-
-            if (data.response && data.response.song && data.response.song.url) {
-                const lyricsUrl = data.response.song.url;
-                lyricsContent.innerHTML += `<p>Lyrics are available at: <a href="${lyricsUrl}" target="_blank">Genius Lyrics</a></p>`;
-            } else {
-                lyricsContent.innerHTML += '<p>Lyrics not available</p>';
-            }
-        } catch (error) {
-            console.error('Error fetching lyrics:', error);
-            lyricsContent.innerHTML += '<p>Error fetching lyrics information</p>';
-        }
-    }
-
-    function searchArtist(artistName) {
-        const params = new URLSearchParams({
-            method: 'artist.getinfo',
-            artist: artistName,
-            api_key: lastfmApiKey,
-            format: 'json'
+        // Search functionality
+        searchButton.addEventListener('click', () => {
+            const searchTerm = searchInput.value;
+            searchSong(searchTerm);
         });
 
-        fetch(`${corsProxy}${lastfmApiUrl}?${params}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch artist info from Last.fm: ${response.status} ${response.statusText}`);
+        async function searchSong(query) {
+            try {
+                const geniusResponse = await fetch(`${corsProxy}${geniusApiUrl}/search?q=${encodeURIComponent(query)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${geniusApiKey}`
+                    }
+                });
+                const geniusData = await geniusResponse.json();
+
+                if (geniusData.response.hits.length > 0) {
+                    const song = geniusData.response.hits[0].result;
+                    displaySongInfo(song);
+                    await fetchLyrics(song.id);
+                    await searchArtist(song.primary_artist.name);
+                } else {
+                    console.log('Song not found');
+                    clearSongInfo();
                 }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Last.fm API response:', data);
+            } catch (error) {
+                console.error('Error:', error);
+                clearSongInfo();
+            }
+        }
+
+        function displaySongInfo(song) {
+            lyricsContent.innerHTML = `
+                <h3>${song.title}</h3>
+                <p>Artist: ${song.primary_artist.name}</p>
+                <p>Album: ${song.album ? song.album.name : 'N/A'}</p>
+                <p>Release Date: ${song.release_date_for_display || 'N/A'}</p>
+            `;
+        }
+
+        async function fetchLyrics(songId) {
+            try {
+                const response = await fetch(`${corsProxy}${geniusApiUrl}/songs/${songId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${geniusApiKey}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.response && data.response.song && data.response.song.url) {
+                    const lyricsUrl = data.response.song.url;
+                    lyricsContent.innerHTML += `<p>Lyrics are available at: <a href="${lyricsUrl}" target="_blank">Genius Lyrics</a></p>`;
+                } else {
+                    lyricsContent.innerHTML += '<p>Lyrics not available</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching lyrics:', error);
+                lyricsContent.innerHTML += '<p>Error fetching lyrics information</p>';
+            }
+        }
+
+        async function searchArtist(artistName) {
+            try {
+                const params = new URLSearchParams({
+                    method: 'artist.getinfo',
+                    artist: artistName,
+                    api_key: lastfmApiKey,
+                    format: 'json'
+                });
+
+                const response = await fetch(`${corsProxy}${lastfmApiUrl}?${params}`);
+                const data = await response.json();
+
                 if (data.artist) {
                     displayArtistInfo(data.artist);
                 } else {
-                    clearArtistInfo('Artist not found.');
+                    console.log('Artist not found');
+                    clearArtistInfo();
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
-                clearArtistInfo('Error fetching artist information. Please try again later.');
-            });
-    }
+                clearArtistInfo();
+            }
+        }
 
-    function displayArtistInfo(artist) {
-        artistName.textContent = artist.name;
-        artistBio.innerHTML = artist.bio.summary.replace(/<a href=".*">Read more on Last\.fm<\/a>/, '');
-        artistImage.src = artist.image.find(img => img.size === 'large')['#text'] || "https://placeholder.com/300x300";
-    }
+        function displayArtistInfo(artist) {
+            artistName.textContent = artist.name;
+            artistBio.textContent = artist.bio.summary.replace(/<a href=".*">Read more on Last.fm<\/a>/, '');
+            artistImage.src = artist.image.find(img => img.size === 'large')['#text'] || "https://placeholder.com/300x300";
+        }
 
-    function clearSongInfo(message) {
-        lyricsContent.innerHTML = message;
-        clearArtistInfo();
-    }
+        function clearSongInfo() {
+            lyricsContent.innerHTML = "Song not found. Please try another search.";
+            clearArtistInfo();
+        }
 
-    function clearArtistInfo(message = "Artist biography will be displayed here...") {
-        artistName.textContent = "Artist Name";
-        artistBio.textContent = message;
-        artistImage.src = "https://placeholder.com/300x300";
-    }
-</script>
-
+        function clearArtistInfo() {
+            artistName.textContent = "Artist Name";
+            artistBio.textContent = "Artist biography will be displayed here...";
+            artistImage.src = "https://placeholder.com/300x300";
+        }
+    </script>
 </body>
 </html>
